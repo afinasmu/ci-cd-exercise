@@ -3,7 +3,7 @@ stages:
   - deploy
 
 variables:
-  CI_REGISTRY_IMAGE: afin/stockbit-devops
+  CI_REGISTRY_IMAGE: afinas/stockbit-devops
 
 build_docker_image_and_push:
   stage: build
