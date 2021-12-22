@@ -1,0 +1,41 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  CI_REGISTRY_IMAGE: afin/stockbit-devops
+
+build_docker_image_and_push:
+  stage: build
+  image: docker:20
+  services:
+    - docker:dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY --username $CI_REGISTRY_USER --password-stdin
+  script:
+    - docker info
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - master
+
+deployment:
+  stage: deploy
+  image: kroniak/ssh-client
+  before_script:
+    - "which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )"
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIV_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  variables:
+    SSH_TARGET_HOST: $SSH_USER@$SSH_HOST
+  script:
+    - docker info
+    - docker pull $CI_REGISTRY_IMAGE:latest
+    - docker container rm -f app || true
+    - docker run -d -p 80:80 --name app $CI_REGISTRY_IMAGE:latest
+  only:
+    - master
+
